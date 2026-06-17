@@ -536,7 +536,7 @@ function legendHtml(){
   return `<div class="legend">${entries.map(([k,l])=>`<span><i class="dot" style="background:${categoryInfo(k).color}"></i>${l}</span>`).join('')}</div>`;
 }
 function renderSwitches(){
-  const wrap=document.getElementById('switches'); wrap.innerHTML='';
+    const wrap=document.getElementById('switches'); if(!wrap)return; wrap.innerHTML='';
   const switches=project.switches.filter(sw=>switchMatchesRoleFilter(sw)&&switchMatchesSearch(sw));
   for(const sw of switches){
     syncSwitchPorts(sw);
@@ -615,7 +615,7 @@ function updatePortFilterValue(value){
 function renderTable(){
   ensureAllTags();
   syncTableSearchMirror();
-  const tbody=document.querySelector('#portTable tbody'); tbody.innerHTML='';
+    const tbody=document.querySelector('#portTable tbody'); if(!tbody)return; tbody.innerHTML='';
   const rows=visiblePorts();
   for(const p of rows){
     const sw=bySwitch(p.switchId),info=categoryInfo(p.category);
@@ -1586,26 +1586,37 @@ function printSwitchOnlyTopology(){
     return (degree.get(b.id)||0) - (degree.get(a.id)||0);
   })[0] || null;
 
-  const shortName = sw=>{
-    const raw = String(sw?.name || sw?.model || 'Switch');
-    if(/CORE/i.test(raw)) return 'CORE A';
-    if(/AV STAGE/i.test(raw)) return 'AV STAGE B';
-    if(/VIDEO PROD/i.test(raw)) return 'VIDEO PROD C';
-    if(/MEETING ROOMS/i.test(raw)) return 'MEETING ROOMS D';
-    if(/LIGHTING/i.test(raw)) return 'LIGHTING E';
-    if(/WIRELESS EDGE/i.test(raw)) return 'WIRELESS EDGE F';
-    if(/IOT PRINT/i.test(raw)) return 'IOT PRINT G';
-    if(/ROOM A/i.test(raw)) return 'ROOM A H';
-    if(/AUDIO DANTE/i.test(raw)) return 'AUDIO DANTE D';
-    if(/MONITOR WALL/i.test(raw)) return 'MONITOR WALL F';
-    if(/STUDIO 1/i.test(raw)) return 'STUDIO 1 B';
-    if(/STUDIO 2/i.test(raw)) return 'STUDIO 2 C';
-    if(/REMOTE PROD/i.test(raw)) return 'REMOTE PROD J';
-    if(/REMOTE ENGINEERING/i.test(raw)) return 'REMOTE ENGINEERING K';
-    if(/REMOTE CONTROL/i.test(raw)) return 'REMOTE CONTROL I';
-    if(/STAGE FLOOR/i.test(raw)) return 'STAGE FLOOR H';
-    return raw.replace(/^NETGEAR\s+/i,'').replace(/\s*M4[0-9]{3}\s*/ig,' ').replace(/\s+/g,' ').trim() || raw;
+      const shortName = sw=>{
+    let raw = String(sw?.name || sw?.model || 'Switch');
+    raw = raw
+      .replace(/^NETGEAR\s+/i,'')
+      .replace(/\bM4[0-9]{3}[A-Z0-9-]*\b/ig,' ')
+      .replace(/\b[XMG]SM?[0-9]{3,5}[A-Z0-9-]*\b/ig,' ')
+      .replace(/\bQSFP-?DD\b/ig,'')
+      .replace(/\bSpine\b|\bGateway\b|\bSwitch\b/ig,'')
+      .replace(/[\/]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+    let label = raw.split(' ').filter(Boolean).slice(0,4).join(' ');
+    if(label.length>22) label = label.slice(0,21).trim()+'…';
+    return label || String(sw?.id||'Switch');
   };
+  const shortNameUnique = (()=>{
+    const used = new Map();
+    return sw=>{
+      const base = shortName(sw);
+      let label = base;
+      let n = 2;
+      while(used.has(label) && used.get(label)!==sw.id){
+        const suffix = String(sw?.id||'').replace(/[^a-z0-9]+/ig,'').slice(-3).toUpperCase() || String(n);
+        label = (base.length>16 ? base.slice(0,16).trim() : base) + ' ' + suffix;
+        n++;
+      }
+      used.set(label, sw.id);
+      return label;
+    };
+  })();
+    
   const modelText = sw=>String(sw?.model || 'Switch').replace(/^NETGEAR\s+/i,'');
   const wrapSvgWords = (value,maxChars=28,maxLines=2)=>{
     const prepared=String(value||'')
@@ -1843,7 +1854,7 @@ function printSwitchOnlyTopology(){
     const ports = portsFor(sw.id);
     const active = ports.filter(printIsActivePort).length;
     const trunks = ports.filter(x=>x.category==='Trunk'||parseTags(x.tags).includes('trunk')).length;
-    const titleLines = wrapSvgWords(shortName(sw),18,2);
+   const titleLines = wrapSvgWords(shortNameUnique(sw),16,2);
     const modelLines = wrapSvgWords(modelText(sw),30,1);
     const metaLines = wrapSvgWords(`IP ${sw.ip||'-'} · ${active}/${ports.length} active · ${trunks} trunk`,34,2);
     return `<g class="pmx-nl-node">
