@@ -1,3 +1,0 @@
-PortMap Offline v3.8.95
-Build: PORTMAP_PROJECT_FILE_WORDING_CLEANUP
-Base: v3.8.93 custom .portmap extension
