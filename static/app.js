@@ -460,12 +460,32 @@ globalThis.__portmapProject=project;
 function bySwitch(id){return project.switches.find(s=>s.id===id);}
 function portsFor(id){return project.ports.filter(p=>p.switchId===id).sort((a,b)=>a.port-b.port);}
 function usedPorts(){return project.ports.filter(p=>p.status==='In Use'||(p.category!=='Spare'&&p.status!=='Disabled'));}
+function switchRoleGroup(sw){
+  const role=String(sw?.role||'').trim().toLowerCase();
+  if(role.includes('core')) return 'Core';
+  if(role==='av'||role.includes(' av')||role.includes('av ')) return 'AV';
+  if(role.includes('edge')) return 'Edge';
+  return 'Other';
+}
+function switchMatchesRoleFilter(sw){
+  if(activeSwitchFilter==='all') return true;
+  if(activeSwitchFilter==='Other') return switchRoleGroup(sw)==='Other';
+  return switchRoleGroup(sw)===activeSwitchFilter || String(sw?.role||'')===activeSwitchFilter;
+}
+function switchSearchTerm(){return (document.getElementById('switchSearchFilter')?.value||'').toLowerCase().trim();}
+function switchMatchesSearch(sw){
+  const term=switchSearchTerm();
+  if(!term) return true;
+  const searchable=[sw?.name,sw?.model,sw?.role,sw?.ip,sw?.location,sw?.uptime].join(' ').toLowerCase();
+  return searchable.includes(term);
+}
 function visiblePorts(){
   const showAll=document.getElementById('showAllPorts')?.checked??true;
   const term=(document.getElementById('portFilter')?.value||'').toLowerCase().trim();
   return project.ports.filter(p=>{
     const sw=bySwitch(p.switchId); if(!sw) return false;
-    if(activeSwitchFilter!=='all'&&sw.role!==activeSwitchFilter) return false;
+    if(!switchMatchesRoleFilter(sw)) return false;
+    if(!switchMatchesSearch(sw)) return false;
     if(!showAll&&p.status!=='In Use') return false;
     if(term){
       const searchable=[
@@ -517,7 +537,7 @@ function legendHtml(){
 }
 function renderSwitches(){
   const wrap=document.getElementById('switches'); wrap.innerHTML='';
-  const switches=project.switches.filter(sw=>activeSwitchFilter==='all'||sw.role===activeSwitchFilter);
+  const switches=project.switches.filter(sw=>switchMatchesRoleFilter(sw)&&switchMatchesSearch(sw));
   for(const sw of switches){
     syncSwitchPorts(sw);
     const perRow=Math.ceil(Number(sw.ports||1)/Math.max(1,Number(sw.rows||1)));
@@ -2523,6 +2543,7 @@ document.querySelectorAll('.switch-filter button').forEach(btn=>btn.addEventList
   btn.classList.add('active'); activeSwitchFilter=btn.dataset.filter; renderSwitches(); renderTable();
 }));
 document.getElementById('portFilter').addEventListener('input',e=>updatePortFilterValue(e.target.value));
+document.getElementById('switchSearchFilter')?.addEventListener('input',()=>{renderSwitches();renderTable();});
 document.getElementById('portSearchTabBtn')?.addEventListener('click',()=>setPortListSearchActive(true));
 document.getElementById('portListTabBtn')?.addEventListener('click',()=>setPortListSearchActive(false));
 document.getElementById('tableSearchInput')?.addEventListener('input',e=>updatePortFilterValue(e.target.value));
