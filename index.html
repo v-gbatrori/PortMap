@@ -3793,14 +3793,30 @@ function deleteSwitch(){
   project.topologyDevices.forEach(d=>{if(d.connectedTo===editingSwitchId)d.connectedTo=project.switches[0]?.id||'';});
   closeDetails(); document.getElementById('switchDialog').close(); renderAll(); saveLocal();
 }
+function promptNewProjectName(){
+  const value=prompt('Project name:', 'Untitled PortMap Project');
+  if(value===null)return null;
+  const name=String(value||'').trim()||'Untitled PortMap Project';
+  return name;
+}
 function newProject(){
   if(!confirm('Create a new blank project and replace the current project? Export first if you want to keep the current project.'))return;
-  project=normalizeProject(createEmptyProject()); selected=null;
+  const projectName=promptNewProjectName();
+  if(projectName===null)return;
+  project=normalizeProject(createEmptyProject());
+  project.name=projectName;
+  project.projectName=projectName;
+  selected=null;
   renderAll(); closeDetails(); saveLocal(); openView('portmap');
 }
 function newEmptyProject(){
   if(!confirm('Create a blank project and remove all demo/sample data? Export first to keep the current project.'))return;
-  project=normalizeProject(createEmptyProject()); selected=null;
+  const projectName=promptNewProjectName();
+  if(projectName===null)return;
+  project=normalizeProject(createEmptyProject());
+  project.name=projectName;
+  project.projectName=projectName;
+  selected=null;
   renderAll(); closeDetails(); saveLocal(); openView('portmap');
 }
 function openDeviceDialog(){
